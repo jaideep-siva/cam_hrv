@@ -29,6 +29,34 @@ This application accesses the user's webcam to capture video, detects the user's
     ```shell
     python HR.py
     ```
+ ## Docker Instructions
+
+You can also run this application in a Docker container. To do so, follow these steps:
+
+1. Ensure Docker is installed on your system. If not, you can download and install it from the [official Docker website](https://www.docker.com/products/docker-desktop).
+
+2. Clone this repository to your local system:
+
+    ```shell
+    git clone https://github.com/masonkadem/RealTimeHeartRateMonitor.git
+    cd RealTimeHeartRateMonitor
+    ```
+
+3. Build the Docker image:
+
+    ```shell
+    docker build -t real-time-heart-rate-monitor .
+    ```
+
+4. Run the Docker container. If you are on a Linux system, you can use the `--device` flag to give Docker access to your webcam. Replace `/dev/video0` with the appropriate device path for your system:
+
+    ```shell
+    docker run --device /dev/video0 -p 4000:80 real-time-heart-rate-monitor
+    ```
+
+**Note**: Docker may not have access to your webcam, which is required for this script to function. Docker can access hardware devices like the webcam on Linux systems, but it's generally not possible on macOS and Windows. For Windows or macOS, it may be more feasible to run the application directly on your host system or inside a virtual machine that has access to your webcam.
+   
+ 
 
 ## Usage
 
