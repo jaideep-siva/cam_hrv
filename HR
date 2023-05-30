@@ -1,0 +1,79 @@
+import cv2
+import numpy as np
+import threading
+from scipy.signal import butter, filtfilt, find_peaks
+from scipy.fftpack import fft, fftfreq
+from sklearn.decomposition import FastICA
+import matplotlib.pyplot as plt
+from collections import deque
+
+# Load haarcascade for face detection
+face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+
+# Initialize deque (a list-like container with fast appends and pops) with a fixed size
+window_size = 150
+intensities = deque(maxlen=window_size)
+
+# Define Butterworth filter parameters
+N = 3
+Wn = 0.3
+
+# Start webcam
+cap = cv2.VideoCapture(0)
+
+# Define a callback function for the thread
+def update_plot():
+    while True:
+        if len(intensities) == window_size:
+            # Butterworth filter
+            B, A = butter(N, Wn, output='ba')
+            filtered_intensities = filtfilt(B, A, list(intensities))
+
+            # Independent Component Analysis (ICA)
+            ica = FastICA(n_components=1)
+            source_signals = ica.fit_transform(np.array(filtered_intensities).reshape(-1, 1))
+
+            # FFT
+            Y = fft(source_signals)
+            frequencies = fftfreq(len(Y))
+
+            # Extract heart rate
+            idx = np.argmax(np.abs(Y))
+            freq = frequencies[idx]
+            heart_rate = abs(freq * 60)  # in bpm
+
+            print(f'Estimated heart rate: {heart_rate} beats per minute')
+
+            # Plot
+            plt.cla()
+            plt.title('Heart Rate Signal')
+            plt.plot(filtered_intensities)
+            plt.pause(0.005)
+
+# Create a separate thread for updating the plot
+thread = threading.Thread(target=update_plot)
+thread.daemon = True
+thread.start()
+
+# Main loop
+while True:
+    ret, frame = cap.read()
+    if not ret:
+        break
+
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    faces = face_cascade.detectMultiScale(gray, 1.3, 5)
+
+    if len(faces) > 0:
+        face = max(faces, key=lambda rectangle: (rectangle[2] * rectangle[3]))  # width * height
+        (x, y, w, h) = face
+        roi = frame[y:y+h//4, x:x+w]  # Forehead region
+
+        # Convert ROI to HSV
+        roi = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
+
+        # Append the average intensity in the ROI to the list of intensities
+        intensities.append(np.mean(roi[:, :, 2]))
+
+# Release the webcam
+cap.release()
